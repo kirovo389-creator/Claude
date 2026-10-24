@@ -2,21 +2,27 @@ package com.kirovo389.workbench;
 
 import android.app.Activity;
 import android.os.Bundle;
-import android.text.InputType;
-import android.widget.Button;\nimport android.app.ProgressDialog;\nimport org.json.JSONArray;\nimport org.json.JSONObject;
+import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
-import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.List;
+
 public class SetupActivity extends AppCompatActivity {
-    private EditText baseUrl, apiKey, modelId;
-    private Spinner protocol;
+    private EditText baseUrl;
+    private EditText apiKey;
+    private EditText modelId;
     private CheckBox remember;
-    private TextView error;\n    private Button loadModels;
+    private TextView error;
+    private Button loadModels;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -26,38 +32,62 @@ public class SetupActivity extends AppCompatActivity {
         baseUrl = findViewById(R.id.base_url_input);
         apiKey = findViewById(R.id.api_key_input);
         modelId = findViewById(R.id.model_id_input);
-        protocol = findViewById(R.id.protocol_spinner);
         remember = findViewById(R.id.remember_key_checkbox);
-        error = findViewById(R.id.setup_error);\n        loadModels = findViewById(R.id.load_models_button);\n        loadModels.setOnClickListener(v -> loadModels());
+        error = findViewById(R.id.setup_error);
+        loadModels = findViewById(R.id.load_models_button);
 
         baseUrl.setText(AppConfig.baseUrl(this));
         apiKey.setText(AppConfig.apiKey(this));
         modelId.setText(AppConfig.model(this));
         remember.setChecked(AppConfig.rememberKey(this));
-        protocol.setSelection("anthropic".equals(AppConfig.protocol(this)) ? 1 : 0);
 
-        Button save = findViewById(R.id.save_config_button);
-        save.setOnClickListener(v -> save());
+        loadModels.setOnClickListener(v -> loadModels());
+        findViewById(R.id.save_config_button).setOnClickListener(v -> save());
     }
 
-
-    private void loadModels() {
+    private void save() {
         String url = baseUrl.getText().toString().trim();
         String key = apiKey.getText().toString().trim();
-        if (!(url.startsWith("https://") || url.startsWith("http://")) || key.isEmpty()) {
-            error.setText("Сначала укажите Base URL и API Key, затем загрузите модели.");
+        String model = modelId.getText().toString().trim();
+
+        if (!"https://api.reformboss.com/v1".equalsIgnoreCase(url.replaceAll("/+$", ""))) {
+            error.setText("Для этого приложения Base URL должен быть https://api.reformboss.com/v1.");
             return;
         }
-        String protocolValue = protocol.getSelectedItemPosition() == 1 ? "anthropic" : "openai";
-        AppConfig.save(this, url, key, modelId.getText().toString().trim(), protocolValue, remember.isChecked());
+        if (key.isEmpty()) {
+            error.setText("Введите API Key.");
+            return;
+        }
+        if (model.isEmpty()) {
+            error.setText("Введите Model ID или загрузите список моделей.");
+            return;
+        }
+
+        AppConfig.save(this, AppConfig.DEFAULT_BASE_URL, key, model, AppConfig.PROVIDER_ID, remember.isChecked());
+        setResult(Activity.RESULT_OK);
+        Toast.makeText(this, "Подключение Reformboss сохранено", Toast.LENGTH_SHORT).show();
+        finish();
+    }
+
+    private void loadModels() {
+        String url = baseUrl.getText().toString().trim().replaceAll("/+$", "");
+        String key = apiKey.getText().toString().trim();
+        if (!"https://api.reformboss.com/v1".equalsIgnoreCase(url) || key.isEmpty()) {
+            error.setText("Укажите endpoint Reformboss и API Key.");
+            return;
+        }
+
+        AppConfig.save(this, AppConfig.DEFAULT_BASE_URL, key, modelId.getText().toString().trim(),
+                AppConfig.PROVIDER_ID, remember.isChecked());
         loadModels.setEnabled(false);
-        loadModels.setText("Загружаю модели…");
+        loadModels.setText("Загружаю список…");
         error.setText("");
+
         new Thread(() -> {
             try {
-                JSONArray models = new ApiClient(this).fetchModels();
-                java.util.ArrayList<String> ids = new java.util.ArrayList<>();
-                java.util.ArrayList<String> labels = new java.util.ArrayList<>();
+                JSONArray models = new ApiClient(getApplicationContext()).fetchModels();
+                List<String> ids = new ArrayList<>();
+                List<String> labels = new ArrayList<>();
                 for (int i = 0; i < models.length(); i++) {
                     JSONObject item = models.optJSONObject(i);
                     if (item == null) continue;
@@ -65,20 +95,20 @@ public class SetupActivity extends AppCompatActivity {
                     if (id.isEmpty()) continue;
                     String label = item.optString("name", item.optString("display_name", id));
                     ids.add(id);
-                    labels.add(label.equals(id) ? id : label + "  ·  " + id);
+                    labels.add(label.equals(id) ? id : label + " · " + id);
                 }
                 runOnUiThread(() -> {
                     loadModels.setEnabled(true);
                     loadModels.setText("Загрузить список моделей");
                     if (ids.isEmpty()) {
-                        error.setText("API вернул пустой список моделей. Можно ввести Model ID вручную.");
+                        error.setText("API не вернул список моделей. Можно ввести Model ID вручную.");
                         return;
                     }
                     new android.app.AlertDialog.Builder(this)
-                            .setTitle("Выберите модель")
+                            .setTitle("Модели Reformboss")
                             .setItems(labels.toArray(new String[0]), (dialog, which) -> {
                                 modelId.setText(ids.get(which));
-                                error.setText("Модель выбрана.");
+                                error.setText("Выбрана модель: " + ids.get(which));
                             })
                             .setNegativeButton("Отмена", null)
                             .show();
@@ -87,35 +117,10 @@ public class SetupActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     loadModels.setEnabled(true);
                     loadModels.setText("Загрузить список моделей");
-                    error.setText("Не удалось загрузить модели: " + e.getMessage()
-                            + "\\nПроверьте URL, ключ и доступность /models. Можно ввести Model ID вручную.");
+                    error.setText("Не удалось загрузить список: " + e.getMessage()
+                            + "\nМожно ввести Model ID вручную.");
                 });
             }
-        }).start();
-    }
-
-    private void save() {
-        String url = baseUrl.getText().toString().trim();
-        String key = apiKey.getText().toString().trim();
-        String model = modelId.getText().toString().trim();
-
-        if (!(url.startsWith("https://") || url.startsWith("http://"))) {
-            error.setText("Укажите Base URL, начинающийся с https:// или http://.");
-            return;
-        }
-        if (key.isEmpty()) {
-            error.setText("Введите API Key.");
-            return;
-        }
-        if (model.isEmpty()) {
-            error.setText("Введите Model ID.");
-            return;
-        }
-
-        String protocolValue = protocol.getSelectedItemPosition() == 1 ? "anthropic" : "openai";
-        AppConfig.save(this, url, key, model, protocolValue, remember.isChecked());
-        setResult(Activity.RESULT_OK);
-        Toast.makeText(this, "Настройки сохранены", Toast.LENGTH_SHORT).show();
-        finish();
+        }, "reformboss-model-list").start();
     }
 }
