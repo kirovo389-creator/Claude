@@ -42,6 +42,36 @@ public final class ApiClient {
         if (c != null) c.disconnect();
     }
 
+
+    public org.json.JSONArray fetchModels() throws Exception {
+        String base = AppConfig.baseUrl(context).trim().replaceAll("/+$", "");
+        String url = base.matches("(?i).*/models$") ? base
+                : base.matches("(?i).*/v[0-9]+$") ? base + "/models"
+                : base + "/v1/models";
+        HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+        c.setRequestMethod("GET");
+        c.setConnectTimeout(18000);
+        c.setReadTimeout(25000);
+        c.setRequestProperty("Accept", "application/json");
+        if ("anthropic".equals(AppConfig.protocol(context))) {
+            c.setRequestProperty("x-api-key", AppConfig.apiKey(context));
+            c.setRequestProperty("anthropic-version", "2023-06-01");
+        } else {
+            c.setRequestProperty("Authorization", "Bearer " + AppConfig.apiKey(context));
+        }
+        int code = c.getResponseCode();
+        String payload = readAll(code >= 200 && code < 300 ? c.getInputStream() : c.getErrorStream(), 1024 * 1024);
+        c.disconnect();
+        if (code < 200 || code >= 300) {
+            throw new IOException("HTTP " + code + ": " + shorten(extractError(payload), 600));
+        }
+        JSONObject json = new JSONObject(payload);
+        org.json.JSONArray data = json.optJSONArray("data");
+        if (data == null) data = json.optJSONArray("models");
+        if (data == null) throw new IOException("API ответил, но список моделей не найден в поле data/models.");
+        return data;
+    }
+
     public void stream(ChatStore.Chat chat, List<String> memories, ChunkListener listener) throws Exception {
         String protocol = AppConfig.protocol(context);
         String endpoint = endpoint(AppConfig.baseUrl(context), protocol);
