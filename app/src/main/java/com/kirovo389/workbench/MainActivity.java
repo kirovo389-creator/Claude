@@ -21,6 +21,7 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -50,7 +51,8 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout messagesContainer;
     private ScrollView messagesScroll;
     private EditText promptInput;
-    private TextView titleText, modelLabel, thinkButton, thinkStatus, sendButton, attachmentsLabel;
+    private TextView titleText, modelLabel, thinkButton, thinkStatus, attachmentsLabel;
+    private ImageButton sendButton;
     private ChatStore.Chat currentChat;
     private ChatStore.Chat streamingChat;
     private ChatStore.Message streamingMessage;
@@ -178,7 +180,8 @@ public class MainActivity extends AppCompatActivity {
         updateThinkMode();
         updateAttachmentsLabel();
         sendButton.setEnabled(true);
-        sendButton.setText(streaming ? "■" : "↑");
+        sendButton.setImageResource(streaming ? R.drawable.ic_stop : R.drawable.ic_send);
+        sendButton.setColorFilter(getColor(R.color.white));
         sendButton.setContentDescription(streaming ? "Остановить генерацию" : "Отправить сообщение");
         thinkStatus.setText(streaming
                 ? (AppConfig.thinkMode(this) ? "Расширенно размышляю…" : "Генерирую ответ…")
