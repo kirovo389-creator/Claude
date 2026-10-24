@@ -175,12 +175,7 @@ public final class ApiClient {
         if (!message.text.isEmpty()) parts.put(new JSONObject().put("type", "text").put("text", message.text));
         for (ChatStore.Attachment a : message.attachments) {
             String mime = safeMime(a.mime);
-            byte[] data = readAttachment(a, 10 * 1024 * 1024);
-            if (mime.startsWith("image/")) {
-                String src = "data:" + mime + ";base64," + Base64.encodeToString(data, Base64.NO_WRAP);
-                parts.put(new JSONObject().put("type", "image_url")
-                        .put("image_url", new JSONObject().put("url", src)));
-            } else if (mime.startsWith("video/")) {
+            if (mime.startsWith("video/")) {
                 parts.put(new JSONObject().put("type", "text").put("text",
                         "Video attachment: " + a.name + ". Three sampled frames follow."));
                 for (Frame frame : videoFrames(a)) {
@@ -188,6 +183,13 @@ public final class ApiClient {
                     String src = "data:image/jpeg;base64," + Base64.encodeToString(frame.bytes, Base64.NO_WRAP);
                     parts.put(new JSONObject().put("type", "image_url").put("image_url", new JSONObject().put("url", src)));
                 }
+                continue;
+            }
+            byte[] data = readAttachment(a, 10 * 1024 * 1024);
+            if (mime.startsWith("image/")) {
+                String src = "data:" + mime + ";base64," + Base64.encodeToString(data, Base64.NO_WRAP);
+                parts.put(new JSONObject().put("type", "image_url")
+                        .put("image_url", new JSONObject().put("url", src)));
             } else if (mime.equals("application/pdf")) {
                 parts.put(new JSONObject().put("type", "text").put("text",
                         "[PDF " + a.name + " attached. The selected OpenAI-compatible Chat Completions API has no universal PDF payload format; provide extracted text or use a provider-specific endpoint.]"));
