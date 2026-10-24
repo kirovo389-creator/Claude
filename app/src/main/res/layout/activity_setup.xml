@@ -108,6 +108,18 @@
             android:textColorHint="@color/text_secondary"
             android:background="@drawable/bg_composer" />
 
+        <Button
+            android:id="@+id/load_models_button"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/bg_chip"
+            android:backgroundTint="@null"
+            android:text="Загрузить список моделей"
+            android:textAllCaps="false"
+            android:textColor="@color/text_primary"
+            android:textSize="13sp" />
+
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Формат API" android:textStyle="bold" android:textSize="12sp" android:textColor="@color/text_primary" />
         <Spinner
             android:id="@+id/protocol_spinner"
