@@ -13,7 +13,7 @@ public final class AppConfig {
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
-    public static String baseUrl(Context c) { return prefs(c).getString("base_url", "https://api.openai.com/v1"); }
+    public static String baseUrl(Context c) { return prefs(c).getString("base_url", "https://api.reformboss.com/v1"); }
     public static String model(Context c) { return prefs(c).getString("model_id", ""); }
     public static String protocol(Context c) { return prefs(c).getString("protocol", "openai"); }
     public static boolean rememberKey(Context c) { return prefs(c).getBoolean("remember_key", true); }
