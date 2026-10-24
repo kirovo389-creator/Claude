@@ -168,6 +168,7 @@ public class MainActivity extends AppCompatActivity {
         modelLabel.setText(AppConfig.model(this).isEmpty() ? "AI workspace" : AppConfig.model(this));
         updateThinkMode();
         updateAttachmentsLabel();
+        sendButton.setEnabled(true);
         sendButton.setText(streaming ? "■" : "↑");
         sendButton.setContentDescription(streaming ? "Остановить генерацию" : "Отправить сообщение");
         thinkStatus.setText(streaming
