@@ -16,7 +16,7 @@ import java.util.Locale;
 
 /** Read-only context loader for a user-selected Android Storage Access Framework folder. */
 public final class ProjectWorkspace {
-    private static final int MAX_FILES = 20;
+    private static final int MAX_FILES = 80;
     private static final int MAX_DEPTH = 5;
     private static final int MAX_BYTES_PER_FILE = 5000;
     private static final int MAX_TOTAL_CHARS = 30000;
@@ -27,6 +27,28 @@ public final class ProjectWorkspace {
         final String path;
         final DocumentFile file;
         Entry(String path, DocumentFile file) { this.path = path; this.file = file; }
+    }
+
+    public static final class ProjectFile {
+        public final String path;
+        public final String content;
+        ProjectFile(String path, String content) { this.path = path; this.content = content; }
+    }
+
+    public static List<ProjectFile> listProjectFiles(Context context, String uriText) {
+        List<ProjectFile> result = new ArrayList<>();
+        if (uriText == null || uriText.trim().isEmpty()) return result;
+        DocumentFile root;
+        try { root = DocumentFile.fromTreeUri(context, Uri.parse(uriText)); }
+        catch (Exception e) { return result; }
+        if (root == null || !root.isDirectory()) return result;
+        List<Entry> entries = new ArrayList<>();
+        collect(root, "", 0, entries);
+        for (Entry entry : entries) {
+            String content = readText(context, entry.file);
+            if (!content.isEmpty()) result.add(new ProjectFile(entry.path, content));
+        }
+        return result;
     }
 
     public static String getRootName(Context context, String uriText) {

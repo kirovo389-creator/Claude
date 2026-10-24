@@ -333,9 +333,10 @@ public class MainActivity extends AppCompatActivity {
         String memoryToggle = AppConfig.autoMemory(this) ? "Автопамять: выключить" : "Автопамять: включить";
         String projectToggle = AppConfig.projectFolder(this).isEmpty() ? "Выбрать папку проекта" : "Сменить папку проекта";
         String removeProject = AppConfig.projectFolder(this).isEmpty() ? "Папка проекта не выбрана" : "Отключить папку проекта";
+        String browseProject = AppConfig.projectFolder(this).isEmpty() ? "Просмотр файлов (сначала выберите папку)" : "Просмотреть файлы проекта";
         new AlertDialog.Builder(this)
                 .setTitle("Инструменты")
-                .setItems(new String[]{"Память", memoryToggle, projectToggle, removeProject, "Настройки API"}, (dialog, which) -> {
+                .setItems(new String[]{"Память", memoryToggle, projectToggle, removeProject, browseProject, "Настройки API"}, (dialog, which) -> {
                     if (which == 0) {
                         showMemory();
                     } else if (which == 1) {
@@ -360,10 +361,56 @@ public class MainActivity extends AppCompatActivity {
                             updateChrome();
                             toast("Папка проекта отключена.");
                         }
+                    } else if (which == 4) {
+                        showProjectFiles();
                     } else {
                         openSetup();
                     }
                 })
+                .show();
+    }
+
+    private void showProjectFiles() {
+        String folder = AppConfig.projectFolder(this);
+        if (folder.isEmpty()) {
+            toast("Сначала выберите папку проекта в меню инструментов.");
+            return;
+        }
+        List<ProjectWorkspace.ProjectFile> files = ProjectWorkspace.listProjectFiles(this, folder);
+        if (files.isEmpty()) {
+            toast("Текстовые файлы не найдены или нет доступа к папке.");
+            return;
+        }
+        String[] labels = new String[files.size()];
+        for (int i = 0; i < files.size(); i++) labels[i] = "‹/›  " + files.get(i).path;
+        new AlertDialog.Builder(this)
+                .setTitle("Файлы проекта · " + files.size())
+                .setItems(labels, (dialog, which) -> showProjectFile(files.get(which)))
+                .setNegativeButton("Закрыть", null)
+                .show();
+    }
+
+    private void showProjectFile(ProjectWorkspace.ProjectFile file) {
+        ScrollView scroll = new ScrollView(this);
+        TextView source = new TextView(this);
+        source.setText(file.content);
+        source.setTextColor(getColor(R.color.text_primary));
+        source.setTextSize(12);
+        source.setTypeface(Typeface.MONOSPACE);
+        source.setTextIsSelectable(true);
+        source.setPadding(dp(14), dp(12), dp(14), dp(12));
+        scroll.addView(source);
+        new AlertDialog.Builder(this)
+                .setTitle(file.path)
+                .setView(scroll)
+                .setNeutralButton("Спросить об этом файле", (dialog, which) -> {
+                    String prompt = "Проанализируй файл " + file.path + " и ответь по существу.\n\n"
+                            + "Содержимое файла:\n" + file.content;
+                    promptInput.setText(prompt);
+                    promptInput.setSelection(promptInput.getText().length());
+                    promptInput.requestFocus();
+                })
+                .setPositiveButton("Готово", null)
                 .show();
     }
 
