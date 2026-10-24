@@ -751,14 +751,14 @@ public class MainActivity extends AppCompatActivity {
         updateChrome();
         List<String> existing = new ArrayList<>(memories);
         memoryExecutor.execute(() -> {
-            List<String> found = Collections.emptyList();
+            List<ApiClient.MemoryChange> found = Collections.emptyList();
             String failure = null;
             try {
                 found = new ApiClient(this).extractMemories(snapshot, existing);
             } catch (Exception e) {
                 failure = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
             }
-            final List<String> candidates = found;
+            final List<ApiClient.MemoryChange> candidates = found;
             final boolean failed = failure != null;
             runOnUiThread(() -> {
                 if (isFinishing() || isDestroyed()) return;
@@ -767,7 +767,7 @@ public class MainActivity extends AppCompatActivity {
                     int added = mergeAutoMemories(candidates);
                     if (added > 0) ChatStore.saveMemory(this, memories);
                     memoryStatusText = failed ? "Память не обновлена"
-                            : added > 0 ? "Запомнил фактов: " + added : "Память без изменений";
+                            : added > 0 ? "Память обновлена: " + added : "Память без изменений";
                 } else {
                     memoryStatusText = "Автопамять выключена";
                 }
@@ -776,24 +776,66 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private int mergeAutoMemories(List<String> candidates) {
-        if (candidates == null || candidates.isEmpty()) return 0;
-        int added = 0;
-        for (String candidate : candidates) {
-            if (candidate == null) continue;
-            String value = candidate.trim().replaceAll("\\s+", " ");
-            if (value.length() < 4 || value.length() > 220) continue;
-            if (value.matches("(?is).*(api[_ -]?key|password|парол[ья]|access token|bearer\\s+[a-z0-9._-]+|sk-[a-z0-9_-]{8,}|secret key).*")) continue;
-            boolean duplicate = false;
-            for (String memory : memories) {
-                if (memory.equalsIgnoreCase(value)) { duplicate = true; break; }
+    private int mergeAutoMemories(List<ApiClient.MemoryChange> changes) {
+        if (changes == null || changes.isEmpty()) return 0;
+        int changed = 0;
+        for (ApiClient.MemoryChange change : changes) {
+            if (change == null) continue;
+            if ("remove".equals(change.action)) {
+                for (int i = memories.size() - 1; i >= 0; i--) {
+                    if (memories.get(i).equalsIgnoreCase(change.previous)) {
+                        memories.remove(i);
+                        changed++;
+                        break;
+                    }
+                }
+                continue;
             }
-            if (duplicate) continue;
-            memories.add(value);
-            added++;
-            if (memories.size() > 30) memories.remove(0);
+            if ("update".equals(change.action)) {
+                int match = -1;
+                for (int i = 0; i < memories.size(); i++) {
+                    if (memories.get(i).equalsIgnoreCase(change.previous)) {
+                        match = i;
+                        break;
+                    }
+                }
+                String replacement = change.value.trim().replaceAll("\\s+", " ");
+                if (!isSafeMemoryTextLocal(replacement)) continue;
+                if (match >= 0) {
+                    if (memories.get(match).equals(replacement)) continue;
+                    boolean duplicate = false;
+                    for (int i = 0; i < memories.size(); i++) {
+                        if (i != match && memories.get(i).equalsIgnoreCase(replacement)) {
+                            duplicate = true;
+                            break;
+                        }
+                    }
+                    if (duplicate) memories.remove(match);
+                    else memories.set(match, replacement);
+                    changed++;
+                } else {
+                    changed += addMemoryIfNew(replacement);
+                }
+                continue;
+            }
+            if ("add".equals(change.action)) {
+                changed += addMemoryIfNew(change.value.trim().replaceAll("\\s+", " "));
+            }
         }
-        return added;
+        return changed;
+    }
+
+    private int addMemoryIfNew(String value) {
+        if (!isSafeMemoryTextLocal(value)) return 0;
+        for (String memory : memories) if (memory.equalsIgnoreCase(value)) return 0;
+        memories.add(value);
+        if (memories.size() > 30) memories.remove(0);
+        return 1;
+    }
+
+    private boolean isSafeMemoryTextLocal(String value) {
+        if (value == null || value.length() < 4 || value.length() > 220) return false;
+        return !value.matches("(?is).*(api[_ -]?key|password|парол[ья]|access token|bearer\\s+[a-z0-9._-]+|sk-[a-z0-9_-]{8,}|secret key).*");
     }
 
     private void stopGeneration() {

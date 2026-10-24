@@ -132,11 +132,22 @@ public final class ApiClient {
         }
     }
 
+    public static final class MemoryChange {
+        public final String action;
+        public final String previous;
+        public final String value;
+        public MemoryChange(String action, String previous, String value) {
+            this.action = action;
+            this.previous = previous == null ? "" : previous;
+            this.value = value == null ? "" : value;
+        }
+    }
+
     /**
-     * Extracts durable, non-sensitive memories with a separate small API request.
+     * Asks the configured model to propose memory additions, corrections, and removals.
      * File attachment contents are intentionally excluded from this extraction.
      */
-    public java.util.List<String> extractMemories(ChatStore.Chat chat, java.util.List<String> existing)
+    public java.util.List<MemoryChange> extractMemories(ChatStore.Chat chat, java.util.List<String> existing)
             throws Exception {
         if (chat == null) return java.util.Collections.emptyList();
         StringBuilder transcript = new StringBuilder();
@@ -167,17 +178,17 @@ public final class ApiClient {
         }
         JSONArray messages = new JSONArray();
         messages.put(new JSONObject().put("role", "system").put("content",
-                "You are a conservative private-memory extractor for an AI coding assistant. " +
-                "Use only facts explicitly stated or clearly confirmed by the USER; do not treat assistant guesses as facts. " +
-                "Keep durable response preferences, ongoing project details, and recurring workflow choices only. " +
-                "Never save passwords, API keys, tokens, secrets, precise addresses, sensitive personal information, or one-off questions. " +
-                "Never infer a personal trait. Keep each memory short and in the user's language. " +
-                "Avoid duplicates. Return ONLY valid JSON exactly like {\"memories\":[\"fact\"]}. " +
-                "Return an empty array if there is nothing new. Maximum four facts."));
+                "You maintain a conservative private memory for an AI coding assistant. Use only durable facts explicitly stated or clearly confirmed by the USER. " +
+                "Never save passwords, API keys, tokens, secrets, precise addresses, sensitive personal information, or one-off questions; never infer traits. " +
+                "Memory changes are stored locally, but this request sends recent text to the configured API. " +
+                "Return ONLY JSON with arrays add (strings), update (objects with exact existing from and corrected to strings), and remove (exact existing strings). " +
+                "Use update only when the user explicitly corrects an existing fact. Use remove only when the user explicitly asks to forget a fact or clearly invalidates it. " +
+                "Do not remove a fact merely because it is not mentioned again. Never duplicate existing entries. Keep facts short in the user's language. " +
+                "Return empty arrays when there is nothing to change. Maximum four total changes."));
         messages.put(new JSONObject().put("role", "user").put("content",
                 "Existing memories:\n" + (known.length() == 0 ? "(none)\n" : known.toString()) +
                 "\nRecent conversation:\n" + transcript.toString() +
-                "\nReturn only newly useful facts in JSON; do not quote the conversation."));
+                "\nPropose only justified memory changes. Existing entries must be copied exactly in from/remove fields."));
         JSONObject body = new JSONObject();
         body.put("model", AppConfig.model(context));
         body.put("messages", messages);
@@ -227,25 +238,46 @@ public final class ApiClient {
                 if (closing >= 0) content = content.substring(0, closing);
                 content = content.trim();
             }
-            JSONArray facts;
+            JSONObject changeObject;
             try {
-                facts = new JSONObject(content).optJSONArray("memories");
-            } catch (JSONException notObject) {
-                try { facts = new JSONArray(content); }
-                catch (JSONException invalid) { return java.util.Collections.emptyList(); }
+                changeObject = new JSONObject(content);
+            } catch (JSONException invalidObject) {
+                return java.util.Collections.emptyList();
             }
-            if (facts == null) return java.util.Collections.emptyList();
-            java.util.List<String> result = new java.util.ArrayList<>();
-            for (int i = 0; i < facts.length() && result.size() < 4; i++) {
-                String fact = facts.optString(i, "").trim();
-                if (fact.length() < 4 || fact.length() > 220) continue;
-                if (fact.matches("(?is).*(api[_ -]?key|password|парол[ья]|access token|bearer\\s+[a-z0-9._-]+|sk-[a-z0-9_-]{8,}|secret key).*")) continue;
-                result.add(fact);
+            java.util.List<MemoryChange> result = new java.util.ArrayList<>();
+            JSONArray add = changeObject.optJSONArray("add");
+            if (add != null) {
+                for (int i = 0; i < add.length() && result.size() < 4; i++) {
+                    String fact = add.optString(i, "").trim();
+                    if (isSafeMemoryText(fact)) result.add(new MemoryChange("add", "", fact));
+                }
+            }
+            JSONArray update = changeObject.optJSONArray("update");
+            if (update != null) {
+                for (int i = 0; i < update.length() && result.size() < 4; i++) {
+                    JSONObject item = update.optJSONObject(i);
+                    if (item == null) continue;
+                    String from = item.optString("from", "").trim();
+                    String to = item.optString("to", "").trim();
+                    if (!from.isEmpty() && isSafeMemoryText(to)) result.add(new MemoryChange("update", from, to));
+                }
+            }
+            JSONArray remove = changeObject.optJSONArray("remove");
+            if (remove != null) {
+                for (int i = 0; i < remove.length() && result.size() < 4; i++) {
+                    String old = remove.optString(i, "").trim();
+                    if (old.length() >= 4 && old.length() <= 220) result.add(new MemoryChange("remove", old, ""));
+                }
             }
             return result;
         } finally {
             c.disconnect();
         }
+    }
+
+    private static boolean isSafeMemoryText(String fact) {
+        if (fact == null || fact.length() < 4 || fact.length() > 220) return false;
+        return !fact.matches("(?is).*(api[_ -]?key|password|парол[ья]|access token|bearer\\s+[a-z0-9._-]+|sk-[a-z0-9_-]{8,}|secret key).*");
     }
 
     private JSONObject buildOpenAiPayload(ChatStore.Chat chat, List<String> memories)
