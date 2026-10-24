@@ -1,0 +1,60 @@
+name: Validate and deploy Workbench
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Validate HTML structure and JavaScript syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path("index.html").read_text(encoding="utf-8")
+          assert "<!doctype html>" in html.lower(), "Missing HTML doctype"
+          assert 'id="root"' in html, "Missing app root"
+          scripts = re.findall(r"<script>([\\s\\S]*?)</script>", html, flags=re.I)
+          assert len(scripts) == 1, f"Expected one inline app script, found {len(scripts)}"
+          Path("/tmp/workbench-app.js").write_text(scripts[0], encoding="utf-8")
+          print(f"HTML smoke checks passed; inline script is {len(scripts[0])} chars")
+          PY
+          node --check /tmp/workbench-app.js
+
+  deploy:
+    needs: validate
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: '.'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
