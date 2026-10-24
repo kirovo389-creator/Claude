@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:background="@color/bg"
+    android:clipToPadding="false">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingTop="38dp"
+        android:paddingBottom="30dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+            <TextView
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:gravity="center"
+                android:text="w"
+                android:textStyle="bold"
+                android:textSize="21sp"
+                android:textColor="@color/white"
+                android:background="@drawable/bg_primary_button" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingStart="11dp"
+                android:text="Workbench"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="27dp"
+            android:text="Подключите модель"
+            android:textSize="29sp"
+            android:textStyle="bold"
+            android:letterSpacing="-0.02"
+            android:textColor="@color/text_primary" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="21dp"
+            android:text="Введите Base URL, API Key и Model ID. Учётная запись приложения не требуется."
+            android:textSize="14sp"
+            android:lineSpacingExtra="3dp"
+            android:textColor="@color/text_secondary" />
+
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Base URL" android:textStyle="bold" android:textSize="12sp" android:textColor="@color/text_primary" />
+        <EditText
+            android:id="@+id/base_url_input"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="14dp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:singleLine="true"
+            android:inputType="textUri"
+            android:autofillHints="url"
+            android:hint="https://api.example.com/v1"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_secondary"
+            android:background="@drawable/bg_composer" />
+
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="API Key" android:textStyle="bold" android:textSize="12sp" android:textColor="@color/text_primary" />
+        <EditText
+            android:id="@+id/api_key_input"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="14dp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:singleLine="true"
+            android:inputType="textPassword"
+            android:autofillHints="password"
+            android:hint="Ключ API"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_secondary"
+            android:background="@drawable/bg_composer" />
+
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Model ID" android:textStyle="bold" android:textSize="12sp" android:textColor="@color/text_primary" />
+        <EditText
+            android:id="@+id/model_id_input"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="14dp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:singleLine="true"
+            android:hint="ID модели у провайдера"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_secondary"
+            android:background="@drawable/bg_composer" />
+
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Формат API" android:textStyle="bold" android:textSize="12sp" android:textColor="@color/text_primary" />
+        <Spinner
+            android:id="@+id/protocol_spinner"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/bg_composer"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:entries="@array/api_protocols" />
+
+        <CheckBox
+            android:id="@+id/remember_key_checkbox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:buttonTint="@color/accent"
+            android:checked="true"
+            android:text="Сохранять API Key на этом устройстве"
+            android:textSize="12sp"
+            android:textColor="@color/text_secondary" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="15dp"
+            android:padding="13dp"
+            android:orientation="vertical"
+            android:background="@drawable/bg_chip">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Безопасность"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:textSize="12sp" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Ключ хранится локально в настройках приложения и отправляется только указанному endpoint. Не вставляйте ключ в исходный код или GitHub. Используйте лимиты расходов у провайдера."
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                android:lineSpacingExtra="3dp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/setup_error"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textColor="#B83E3E"
+            android:textSize="12sp" />
+
+        <Button
+            android:id="@+id/save_config_button"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_primary_button"
+            android:backgroundTint="@null"
+            android:text="Продолжить →"
+            android:textAllCaps="false"
+            android:textColor="@color/white"
+            android:textSize="15sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:text="Нативное приложение · Java + XML · Без WebView"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp" />
+    </LinearLayout>
+</ScrollView>
