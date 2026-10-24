@@ -287,6 +287,10 @@ public final class ApiClient {
         system.put("role", "system");
         system.put("content", systemPrompt(memories));
         messages.put(system);
+        String projectContext = ProjectWorkspace.buildContext(context, AppConfig.projectFolder(context));
+        if (!projectContext.isEmpty()) {
+            messages.put(new JSONObject().put("role", "system").put("content", projectContext));
+        }
 
         int start = Math.max(0, chat.messages.size() - 30);
         for (int i = start; i < chat.messages.size(); i++) {

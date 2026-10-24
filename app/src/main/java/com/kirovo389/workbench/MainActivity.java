@@ -74,6 +74,20 @@ public class MainActivity extends AppCompatActivity {
                 for (Uri uri : uris) addAttachment(uri);
             });
 
+    private final ActivityResultLauncher<Uri> projectFolderPicker =
+            registerForActivityResult(new ActivityResultContracts.OpenDocumentTree(), uri -> {
+                if (uri == null) return;
+                try {
+                    getContentResolver().takePersistableUriPermission(
+                            uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    AppConfig.setProjectFolder(this, uri.toString());
+                    updateChrome();
+                    toast("Папка проекта подключена: " + ProjectWorkspace.getRootName(this, uri.toString()));
+                } catch (Exception e) {
+                    toast("Не удалось подключить папку проекта: " + e.getMessage());
+                }
+            });
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -176,7 +190,13 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateChrome() {
         titleText.setText(currentChat == null ? "Workbench" : currentChat.title);
-        modelLabel.setText(AppConfig.model(this).isEmpty() ? "AI workspace" : AppConfig.model(this));
+        String modelText = AppConfig.model(this).isEmpty() ? "Code workspace" : AppConfig.model(this);
+        String folderUri = AppConfig.projectFolder(this);
+        if (!folderUri.isEmpty()) {
+            String folderName = ProjectWorkspace.getRootName(this, folderUri);
+            if (!folderName.isEmpty()) modelText += " · " + folderName;
+        }
+        modelLabel.setText(modelText);
         updateThinkMode();
         updateAttachmentsLabel();
         sendButton.setEnabled(true);
@@ -306,10 +326,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showToolsMenu() {
+        if (streaming) {
+            toast("Сначала дождитесь ответа или остановите генерацию.");
+            return;
+        }
         String memoryToggle = AppConfig.autoMemory(this) ? "Автопамять: выключить" : "Автопамять: включить";
+        String projectToggle = AppConfig.projectFolder(this).isEmpty() ? "Выбрать папку проекта" : "Сменить папку проекта";
+        String removeProject = AppConfig.projectFolder(this).isEmpty() ? "Папка проекта не выбрана" : "Отключить папку проекта";
         new AlertDialog.Builder(this)
                 .setTitle("Инструменты")
-                .setItems(new String[]{"Память", memoryToggle, "Настройки API"}, (dialog, which) -> {
+                .setItems(new String[]{"Память", memoryToggle, projectToggle, removeProject, "Настройки API"}, (dialog, which) -> {
                     if (which == 0) {
                         showMemory();
                     } else if (which == 1) {
@@ -320,6 +346,20 @@ public class MainActivity extends AppCompatActivity {
                         toast(enabled
                                 ? "Автопамять включена. После ответа выполняется отдельный запрос к модели для поиска полезных фактов."
                                 : "Автопамять выключена. Существующие заметки остаются на устройстве.");
+                    } else if (which == 2) {
+                        String oldUri = AppConfig.projectFolder(this);
+                        projectFolderPicker.launch(oldUri.isEmpty() ? null : Uri.parse(oldUri));
+                    } else if (which == 3) {
+                        String oldUri = AppConfig.projectFolder(this);
+                        if (!oldUri.isEmpty()) {
+                            try {
+                                getContentResolver().releasePersistableUriPermission(
+                                        Uri.parse(oldUri), Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                            } catch (Exception ignored) {}
+                            AppConfig.setProjectFolder(this, "");
+                            updateChrome();
+                            toast("Папка проекта отключена.");
+                        }
                     } else {
                         openSetup();
                     }
@@ -451,7 +491,7 @@ public class MainActivity extends AppCompatActivity {
         welcome.addView(title);
 
         TextView subtitle = new TextView(this);
-        subtitle.setText("Исследуйте код, планируйте изменения и прикрепляйте файлы проекта. История и память сохраняются локально.");
+        subtitle.setText("Исследуйте код, выбирайте папку проекта через меню ⋯ и прикрепляйте отдельные файлы. Содержимое отправляется настроенному API; доступ только на чтение.");
         subtitle.setTextColor(getColor(R.color.text_secondary));
         subtitle.setTextSize(14);
         subtitle.setLineSpacing(dp(3), 1f);
