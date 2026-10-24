@@ -42,6 +42,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int SETUP_REQUEST = 81;
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final ExecutorService memoryExecutor = Executors.newSingleThreadExecutor();
     private final List<ChatStore.Chat> chats = new ArrayList<>();
     private final List<String> memories = new ArrayList<>();
     private final List<ChatStore.Attachment> draftAttachments = new ArrayList<>();
@@ -51,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
     private EditText promptInput;
     private TextView titleText, modelLabel, thinkButton, thinkStatus, sendButton, attachmentsLabel;
     private ChatStore.Chat currentChat;
+    private ChatStore.Chat streamingChat;
     private ChatStore.Message streamingMessage;
     private TextView streamingTextView;
     private TextView streamingStateView;
@@ -60,6 +62,8 @@ public class MainActivity extends AppCompatActivity {
     private Markwon markdown;
     private volatile boolean streaming;
     private volatile boolean stopAfterCurrent;
+    private volatile boolean extractingMemory;
+    private String memoryStatusText = "";
     private boolean setupLaunched;
 
     private final ActivityResultLauncher<String[]> filePicker =
@@ -178,7 +182,9 @@ public class MainActivity extends AppCompatActivity {
         sendButton.setContentDescription(streaming ? "Остановить генерацию" : "Отправить сообщение");
         thinkStatus.setText(streaming
                 ? (AppConfig.thinkMode(this) ? "Расширенно размышляю…" : "Генерирую ответ…")
-                : "Готов к работе");
+                : extractingMemory ? "Запоминаю контекст…"
+                : !memoryStatusText.isEmpty() ? memoryStatusText
+                : AppConfig.autoMemory(this) ? "Автопамять включена" : "Готов к работе");
     }
 
     private void updateThinkMode() {
@@ -293,11 +299,23 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showToolsMenu() {
+        String memoryToggle = AppConfig.autoMemory(this) ? "Автопамять: выключить" : "Автопамять: включить";
         new AlertDialog.Builder(this)
                 .setTitle("Инструменты")
-                .setItems(new String[]{"Память", "Настройки API"}, (dialog, which) -> {
-                    if (which == 0) showMemory();
-                    else openSetup();
+                .setItems(new String[]{"Память", memoryToggle, "Настройки API"}, (dialog, which) -> {
+                    if (which == 0) {
+                        showMemory();
+                    } else if (which == 1) {
+                        boolean enabled = !AppConfig.autoMemory(this);
+                        AppConfig.setAutoMemory(this, enabled);
+                        memoryStatusText = enabled ? "Автопамять включена" : "Автопамять выключена";
+                        updateChrome();
+                        toast(enabled
+                                ? "Автопамять включена. После ответа выполняется отдельный запрос к модели для поиска полезных фактов."
+                                : "Автопамять выключена. Существующие заметки остаются на устройстве.");
+                    } else {
+                        openSetup();
+                    }
                 })
                 .show();
     }
@@ -308,7 +326,9 @@ public class MainActivity extends AppCompatActivity {
         box.setPadding(dp(18), dp(8), dp(18), dp(8));
 
         TextView explainer = new TextView(this);
-        explainer.setText("Эти заметки добавляются в контекст будущих запросов. Не сохраняйте API-ключи или пароли.");
+        explainer.setText("Память хранится на устройстве и добавляется в контекст будущих запросов. Автообновление "
+                + (AppConfig.autoMemory(this) ? "включено" : "выключено")
+                + ". При включении после ответа отправляется отдельный короткий запрос к выбранной модели. Не сохраняйте секреты и пароли.");
         explainer.setTextSize(12);
         explainer.setTextColor(getColor(R.color.text_secondary));
         box.addView(explainer);
@@ -609,6 +629,8 @@ public class MainActivity extends AppCompatActivity {
         streamingMessage = new ChatStore.Message("assistant", "");
         streamingMessage.streaming = true;
         currentChat.messages.add(streamingMessage);
+        streamingChat = currentChat;
+        memoryStatusText = "";
         streaming = true;
         stopAfterCurrent = false;
         updateChrome();
@@ -667,6 +689,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void finishStreaming(String error) {
         stopStreamingPulse();
+        ChatStore.Chat completedChat = streamingChat != null ? streamingChat : currentChat;
+        ChatStore.Message completedMessage = streamingMessage;
+        streamingChat = null;
         streaming = false;
         if (thinkAnimator != null) {
             thinkAnimator.cancel();
@@ -690,11 +715,73 @@ public class MainActivity extends AppCompatActivity {
         activeClient = null;
         streaming = false;
         stopAfterCurrent = false;
-        if (currentChat != null) currentChat.updated = System.currentTimeMillis();
+        if (completedChat != null) completedChat.updated = System.currentTimeMillis();
         saveData();
         renderMessages();
         updateChrome();
-        if (error != null) toast("Ошибка API: " + (error.length() > 170 ? error.substring(0, 170) + "…" : error));
+        if (error != null) {
+            toast("Ошибка API: " + (error.length() > 170 ? error.substring(0, 170) + "…" : error));
+        } else if (completedChat != null && completedMessage != null && !completedMessage.text.trim().isEmpty()) {
+            startAutoMemoryUpdate(completedChat);
+        }
+    }
+
+    private void startAutoMemoryUpdate(ChatStore.Chat chat) {
+        if (!AppConfig.autoMemory(this) || chat == null) return;
+        final ChatStore.Chat snapshot;
+        try {
+            snapshot = ChatStore.Chat.fromJson(chat.toJson());
+        } catch (Exception ignored) {
+            return;
+        }
+        extractingMemory = true;
+        memoryStatusText = "";
+        updateChrome();
+        List<String> existing = new ArrayList<>(memories);
+        memoryExecutor.execute(() -> {
+            List<String> found = Collections.emptyList();
+            String failure = null;
+            try {
+                found = new ApiClient(this).extractMemories(snapshot, existing);
+            } catch (Exception e) {
+                failure = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            }
+            final List<String> candidates = found;
+            final boolean failed = failure != null;
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                extractingMemory = false;
+                if (AppConfig.autoMemory(this)) {
+                    int added = mergeAutoMemories(candidates);
+                    if (added > 0) ChatStore.saveMemory(this, memories);
+                    memoryStatusText = failed ? "Память не обновлена"
+                            : added > 0 ? "Запомнил фактов: " + added : "Память без изменений";
+                } else {
+                    memoryStatusText = "Автопамять выключена";
+                }
+                updateChrome();
+            });
+        });
+    }
+
+    private int mergeAutoMemories(List<String> candidates) {
+        if (candidates == null || candidates.isEmpty()) return 0;
+        int added = 0;
+        for (String candidate : candidates) {
+            if (candidate == null) continue;
+            String value = candidate.trim().replaceAll("\\s+", " ");
+            if (value.length() < 4 || value.length() > 220) continue;
+            if (value.matches("(?is).*(api[_ -]?key|password|парол[ья]|access token|bearer\\s+[a-z0-9._-]+|sk-[a-z0-9_-]{8,}|secret key).*")) continue;
+            boolean duplicate = false;
+            for (String memory : memories) {
+                if (memory.equalsIgnoreCase(value)) { duplicate = true; break; }
+            }
+            if (duplicate) continue;
+            memories.add(value);
+            added++;
+            if (memories.size() > 30) memories.remove(0);
+        }
+        return added;
     }
 
     private void stopGeneration() {
@@ -745,6 +832,7 @@ public class MainActivity extends AppCompatActivity {
         if (thinkAnimator != null) thinkAnimator.cancel();
         stopStreamingPulse();
         executor.shutdownNow();
+        memoryExecutor.shutdownNow();
         super.onDestroy();
     }
 }
