@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Workbench</string>
+    <string name="app_name">Workbench Code</string>
     <string-array name="api_protocols">
         <item>OpenAI-compatible Chat Completions</item>
         <item>Anthropic Messages API</item>

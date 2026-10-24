@@ -259,6 +259,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showHistory() {
+        if (streaming) {
+            toast("Сначала дождитесь ответа или остановите генерацию.");
+            return;
+        }
         if (chats.isEmpty()) {
             newChat();
             return;
@@ -428,7 +432,7 @@ public class MainActivity extends AppCompatActivity {
         welcome.setPadding(dp(9), dp(34), dp(9), dp(30));
 
         TextView eyebrow = new TextView(this);
-        eyebrow.setText("ВАШЕ РАБОЧЕЕ ПРОСТРАНСТВО");
+        eyebrow.setText("РАБОЧЕЕ ПРОСТРАНСТВО ДЛЯ КОДА");
         eyebrow.setTextColor(getColor(R.color.accent));
         eyebrow.setTextSize(11);
         eyebrow.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
@@ -436,7 +440,7 @@ public class MainActivity extends AppCompatActivity {
         welcome.addView(eyebrow);
 
         TextView title = new TextView(this);
-        title.setText("Над чем поработаем?");
+        title.setText("Что будем собирать?");
         title.setTextColor(getColor(R.color.text_primary));
         title.setTextSize(31);
         title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
@@ -444,17 +448,17 @@ public class MainActivity extends AppCompatActivity {
         welcome.addView(title);
 
         TextView subtitle = new TextView(this);
-        subtitle.setText("Чат с вашей моделью, вложения и локальная память — в одном рабочем пространстве.");
+        subtitle.setText("Исследуйте код, планируйте изменения и прикрепляйте файлы проекта. История и память сохраняются локально.");
         subtitle.setTextColor(getColor(R.color.text_secondary));
         subtitle.setTextSize(14);
         subtitle.setLineSpacing(dp(3), 1f);
         welcome.addView(subtitle);
 
         String[][] examples = {
-                {"Разобрать проект", "Объясни архитектуру и ключевые файлы."},
-                {"Найти ошибку", "Помоги пошагово диагностировать эту ошибку: "},
+                {"Изучить код", "Объясни архитектуру и взаимосвязи в прикреплённых файлах."},
+                {"Найти ошибку", "Помоги диагностировать ошибку и предложи минимальное исправление: "},
                 {"Спланировать функцию", "Составь план реализации функции с этапами и тестами."},
-                {"Проанализировать файлы", "Проанализируй прикреплённые файлы и перечисли главные выводы."}
+                {"Разобрать сборку", "Помоги определить причину ошибки сборки по этому логу: "}
         };
         for (String[] example : examples) {
             TextView card = new TextView(this);
@@ -681,7 +685,12 @@ public class MainActivity extends AppCompatActivity {
             streamingTextView.setBackgroundResource(R.drawable.bg_assistant_message);
             // The active streaming column is the final child of the conversation.
             View last = messagesContainer.getChildAt(messagesContainer.getChildCount() - 1);
-            if (last instanceof LinearLayout) ((LinearLayout) last).addView(streamingTextView, new LinearLayout.LayoutParams(-1, -2));
+            if (last instanceof LinearLayout) {
+                ((LinearLayout) last).addView(streamingTextView, new LinearLayout.LayoutParams(-1, -2));
+                streamingTextView.setAlpha(0f);
+                streamingTextView.setTranslationY(dp(4));
+                streamingTextView.animate().alpha(1f).translationY(0f).setDuration(160).start();
+            }
         }
         markdown.setMarkdown(streamingTextView, streamingMessage.text);
         scrollToBottom();

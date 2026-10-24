@@ -45,7 +45,7 @@
                 android:id="@+id/model_label"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="AI workspace"
+                android:text="Code workspace"
                 android:textColor="@color/text_secondary"
                 android:textSize="11sp"
                 android:maxLines="1"
@@ -220,7 +220,7 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:paddingTop="7dp"
-            android:text="Ответы могут ошибаться. Запросы оплачиваются вашим API-провайдером."
+            android:text="Ответы могут ошибаться. Автопамять можно отключить в меню. Запросы тарифицируются API-провайдером."
             android:textColor="@color/text_secondary"
             android:textSize="10sp" />
     </LinearLayout>
