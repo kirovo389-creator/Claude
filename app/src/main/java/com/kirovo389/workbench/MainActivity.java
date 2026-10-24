@@ -1,6 +1,7 @@
 package com.kirovo389.workbench;
 
 import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -29,6 +30,8 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
+import io.noties.markwon.Markwon;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -53,8 +56,10 @@ public class MainActivity extends AppCompatActivity {
     private TextView streamingStateView;
     private ApiClient activeClient;
     private ObjectAnimator thinkAnimator;
-    private boolean streaming;
-    private boolean stopAfterCurrent;
+    private ObjectAnimator streamingPulseAnimator;
+    private Markwon markdown;
+    private volatile boolean streaming;
+    private volatile boolean stopAfterCurrent;
     private boolean setupLaunched;
 
     private final ActivityResultLauncher<String[]> filePicker =
@@ -67,6 +72,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        markdown = Markwon.create(this);
 
         bindViews();
         loadData();
@@ -104,8 +110,7 @@ public class MainActivity extends AppCompatActivity {
     private void bindActions() {
         findViewById(R.id.new_chat_button).setOnClickListener(v -> newChat());
         findViewById(R.id.history_button).setOnClickListener(v -> showHistory());
-        findViewById(R.id.memory_button).setOnClickListener(v -> showMemory());
-        findViewById(R.id.settings_button).setOnClickListener(v -> openSetup());
+        findViewById(R.id.tools_button).setOnClickListener(v -> showToolsMenu());
 
         findViewById(R.id.attach_button).setOnClickListener(v -> {
             if (streaming) {
@@ -285,6 +290,16 @@ public class MainActivity extends AppCompatActivity {
                     updateChrome();
                     renderMessages();
                 }).show();
+    }
+
+    private void showToolsMenu() {
+        new AlertDialog.Builder(this)
+                .setTitle("Инструменты")
+                .setItems(new String[]{"Память", "Настройки API"}, (dialog, which) -> {
+                    if (which == 0) showMemory();
+                    else openSetup();
+                })
+                .show();
     }
 
     private void showMemory() {
@@ -479,7 +494,7 @@ public class MainActivity extends AppCompatActivity {
         column.addView(label);
 
         TextView body = new TextView(this);
-        body.setText(message.text);
+        markdown.setMarkdown(body, message.text);
         body.setTextColor(getColor(R.color.text_primary));
         body.setTextSize(14);
         body.setLineSpacing(dp(4), 1f);
@@ -539,7 +554,7 @@ public class MainActivity extends AppCompatActivity {
         column.addView(streamingStateView);
 
         streamingTextView = new TextView(this);
-        streamingTextView.setText(message.text);
+        markdown.setMarkdown(streamingTextView, message.text);
         streamingTextView.setTextColor(getColor(R.color.text_primary));
         streamingTextView.setTextSize(14);
         streamingTextView.setLineSpacing(dp(4), 1f);
@@ -547,6 +562,11 @@ public class MainActivity extends AppCompatActivity {
         streamingTextView.setPadding(dp(13), dp(11), dp(13), dp(11));
         streamingTextView.setBackgroundResource(R.drawable.bg_assistant_message);
         if (!message.text.isEmpty()) column.addView(streamingTextView, new LinearLayout.LayoutParams(-1, -2));
+        streamingPulseAnimator = ObjectAnimator.ofFloat(streamingStateView, View.ALPHA, 0.55f, 1f);
+        streamingPulseAnimator.setDuration(780);
+        streamingPulseAnimator.setRepeatMode(ValueAnimator.REVERSE);
+        streamingPulseAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        streamingPulseAnimator.start();
         if (AppConfig.thinkMode(this)) {
             thinkAnimator = ObjectAnimator.ofFloat(thinkButton, View.ROTATION, 0f, 360f);
             thinkAnimator.setDuration(2600);
@@ -613,10 +633,19 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void stopStreamingPulse() {
+        if (streamingPulseAnimator != null) {
+            streamingPulseAnimator.cancel();
+            streamingPulseAnimator = null;
+        }
+        if (streamingStateView != null) streamingStateView.setAlpha(1f);
+    }
+
     private void appendStreamChunk(String chunk) {
         if (streamingMessage == null || !streaming) return;
         streamingMessage.text += chunk;
         if (streamingStateView != null && streamingStateView.getVisibility() == View.VISIBLE) {
+            stopStreamingPulse();
             streamingStateView.setVisibility(View.GONE);
         }
         if (streamingTextView == null) {
@@ -632,11 +661,12 @@ public class MainActivity extends AppCompatActivity {
             View last = messagesContainer.getChildAt(messagesContainer.getChildCount() - 1);
             if (last instanceof LinearLayout) ((LinearLayout) last).addView(streamingTextView, new LinearLayout.LayoutParams(-1, -2));
         }
-        streamingTextView.setText(streamingMessage.text);
+        markdown.setMarkdown(streamingTextView, streamingMessage.text);
         scrollToBottom();
     }
 
     private void finishStreaming(String error) {
+        stopStreamingPulse();
         streaming = false;
         if (thinkAnimator != null) {
             thinkAnimator.cancel();
@@ -713,6 +743,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         if (activeClient != null) activeClient.cancel();
         if (thinkAnimator != null) thinkAnimator.cancel();
+        stopStreamingPulse();
         executor.shutdownNow();
         super.onDestroy();
     }

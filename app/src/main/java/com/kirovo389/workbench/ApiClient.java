@@ -87,6 +87,9 @@ public final class ApiClient {
         connection.setDoOutput(true);
         connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
         connection.setRequestProperty("Accept", "text/event-stream");
+        connection.setRequestProperty("Cache-Control", "no-cache");
+        connection.setRequestProperty("Pragma", "no-cache");
+        connection.setRequestProperty("X-Accel-Buffering", "no");
         if (protocol.equals("anthropic")) {
             connection.setRequestProperty("x-api-key", AppConfig.apiKey(context));
             connection.setRequestProperty("anthropic-version", "2023-06-01");
@@ -353,11 +356,19 @@ public final class ApiClient {
         return b + "/v1/chat/completions";
     }
 
-    private void parseEvent(String event, String protocol, ChunkListener listener) {
+    private void parseEvent(String event, String protocol, ChunkListener listener) throws IOException {
         String[] lines = event.split("\\r?\\n");
         for (String line : lines) {
-            if (!line.startsWith("data:")) continue;
-            String data = line.substring(5).trim();
+            String trimmed = line.trim();
+            String data;
+            if (trimmed.startsWith("data:")) {
+                data = trimmed.substring(5).trim();
+            } else if (trimmed.startsWith("{")) {
+                // Some OpenAI-compatible gateways stream raw NDJSON instead of standard SSE.
+                data = trimmed;
+            } else {
+                continue;
+            }
             if (data.isEmpty() || data.equals("[DONE]")) continue;
             try {
                 JSONObject json = new JSONObject(data);
@@ -368,24 +379,47 @@ public final class ApiClient {
                         String text = delta.optString("text", "");
                         if (!text.isEmpty()) listener.onChunk(text);
                     }
+                    continue;
+                }
+
+                JSONObject error = json.optJSONObject("error");
+                if (error != null) {
+                    throw new IOException("API error: " + shorten(error.optString("message", error.toString()), 800));
+                }
+
+                JSONArray choices = json.optJSONArray("choices");
+                if (choices == null || choices.length() == 0) continue;
+                JSONObject choice = choices.optJSONObject(0);
+                if (choice == null) continue;
+                JSONObject delta = choice.optJSONObject("delta");
+                if (delta != null) {
+                    emitOpenAiContent(delta.opt("content"), listener);
+                    // Some gateways return the text in this legacy field.
+                    if (!delta.has("content")) emitOpenAiContent(delta.opt("text"), listener);
                 } else {
-                    JSONArray choices = json.optJSONArray("choices");
-                    if (choices == null || choices.length() == 0) continue;
-                    JSONObject choice = choices.optJSONObject(0);
-                    JSONObject delta = choice == null ? null : choice.optJSONObject("delta");
-                    if (delta == null) continue;
-                    String text = delta.optString("content", "");
-                    if (!text.isEmpty() && !"null".equals(text)) listener.onChunk(text);
-                    JSONArray content = delta.optJSONArray("content");
-                    if (content != null) {
-                        for (int i = 0; i < content.length(); i++) {
-                            JSONObject part = content.optJSONObject(i);
-                            if (part != null && !part.optString("text", "").isEmpty()) listener.onChunk(part.optString("text"));
-                        }
-                    }
+                    // A buffered Chat Completions JSON response is accepted as a fallback.
+                    JSONObject message = choice.optJSONObject("message");
+                    if (message != null) emitOpenAiContent(message.opt("content"), listener);
+                    else emitOpenAiContent(choice.opt("text"), listener);
                 }
             } catch (JSONException ignored) {
-                // Keep-alive and provider-specific SSE events are ignored.
+                // Ignore keep-alives and provider-specific SSE events.
+            }
+        }
+    }
+
+    private void emitOpenAiContent(Object content, ChunkListener listener) throws JSONException {
+        if (content instanceof String) {
+            String text = (String) content;
+            if (!text.isEmpty() && !"null".equals(text)) listener.onChunk(text);
+        } else if (content instanceof JSONArray) {
+            JSONArray parts = (JSONArray) content;
+            for (int i = 0; i < parts.length(); i++) {
+                JSONObject part = parts.optJSONObject(i);
+                if (part != null) {
+                    String text = part.optString("text", "");
+                    if (!text.isEmpty()) listener.onChunk(text);
+                }
             }
         }
     }

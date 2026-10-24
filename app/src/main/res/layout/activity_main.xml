@@ -54,44 +54,38 @@
 
         <TextView
             android:id="@+id/new_chat_button"
-            android:layout_width="38dp"
-            android:layout_height="40dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="5dp"
             android:gravity="center"
             android:text="＋"
             android:textSize="23sp"
             android:textColor="@color/text_primary"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:background="@drawable/bg_icon_button"
             android:contentDescription="Новый чат" />
         <TextView
             android:id="@+id/history_button"
-            android:layout_width="38dp"
-            android:layout_height="40dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="5dp"
             android:gravity="center"
-            android:text="☷"
-            android:textSize="21sp"
+            android:text="▤"
+            android:textSize="18sp"
             android:textColor="@color/text_primary"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:background="@drawable/bg_icon_button"
             android:contentDescription="История чатов" />
         <TextView
-            android:id="@+id/memory_button"
-            android:layout_width="38dp"
-            android:layout_height="40dp"
+            android:id="@+id/tools_button"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="5dp"
             android:gravity="center"
-            android:text="✳"
-            android:textSize="19sp"
+            android:text="•••"
+            android:textSize="16sp"
+            android:textStyle="bold"
             android:textColor="@color/text_primary"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Память" />
-        <TextView
-            android:id="@+id/settings_button"
-            android:layout_width="38dp"
-            android:layout_height="40dp"
-            android:gravity="center"
-            android:text="⚙"
-            android:textSize="20sp"
-            android:textColor="@color/text_primary"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Настройки" />
+            android:background="@drawable/bg_icon_button"
+            android:contentDescription="Инструменты и настройки" />
     </LinearLayout>
 
     <View
@@ -179,7 +173,7 @@
                     android:text="＋"
                     android:textSize="25sp"
                     android:textColor="@color/text_secondary"
-                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:background="@drawable/bg_icon_button"
                     android:contentDescription="Прикрепить файл" />
 
                 <TextView
@@ -208,8 +202,9 @@
 
                 <TextView
                     android:id="@+id/send_button"
-                    android:layout_width="38dp"
-                    android:layout_height="36dp"
+                    android:layout_width="40dp"
+                    android:layout_height="38dp"
+                    android:layout_marginStart="5dp"
                     android:gravity="center"
                     android:text="↑"
                     android:textSize="23sp"
