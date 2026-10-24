@@ -400,7 +400,7 @@ public class MainActivity extends AppCompatActivity {
         source.setTextIsSelectable(true);
         source.setPadding(dp(14), dp(12), dp(14), dp(12));
         scroll.addView(source);
-        new AlertDialog.Builder(this)
+        AlertDialog.Builder builder = new AlertDialog.Builder(this)
                 .setTitle(file.path)
                 .setView(scroll)
                 .setNeutralButton("Спросить об этом файле", (dialog, which) -> {
@@ -410,8 +410,72 @@ public class MainActivity extends AppCompatActivity {
                     promptInput.setSelection(promptInput.getText().length());
                     promptInput.requestFocus();
                 })
+                .setPositiveButton("Готово", null);
+        if (file.editable) builder.setNegativeButton("Редактировать", (dialog, which) -> editProjectFile(file));
+        new AlertDialog.Builder(this).setTitle(file.path).setView(scroll)
+                .setNeutralButton("Спросить об этом файле", (dialog, which) -> {
+                    String prompt = "Проанализируй файл " + file.path + " и ответь по существу.\n\n"
+                            + "Содержимое файла:\n" + file.content;
+                    promptInput.setText(prompt);
+                    promptInput.setSelection(promptInput.getText().length());
+                    promptInput.requestFocus();
+                })
                 .setPositiveButton("Готово", null)
+                .setNegativeButton(file.editable ? "Редактировать" : "Файл обрезан", (dialog, which) -> {
+                    if (file.editable) editProjectFile(file);
+                })
                 .show();
+    }
+
+    private void editProjectFile(ProjectWorkspace.ProjectFile file) {
+        EditText editor = new EditText(this);
+        editor.setText(file.content);
+        editor.setTextSize(12);
+        editor.setTypeface(Typeface.MONOSPACE);
+        editor.setGravity(Gravity.TOP | Gravity.START);
+        editor.setMinLines(10);
+        editor.setMaxLines(24);
+        editor.setInputType(android.text.InputType.TYPE_CLASS_TEXT
+                | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                | android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(editor);
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Редактировать · " + file.path)
+                .setView(scroll)
+                .setNegativeButton("Отмена", null)
+                .setPositiveButton("Предпросмотр сохранения", null)
+                .create();
+        dialog.setOnShowListener(v -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(button -> {
+            String changed = editor.getText().toString();
+            if (changed.length() > 256 * 1024) {
+                editor.setError("Максимальный размер — 256 КБ");
+                return;
+            }
+            if (changed.equals(file.content)) {
+                dialog.dismiss();
+                toast("Изменений нет.");
+                return;
+            }
+            int oldLines = file.content.split("\\n", -1).length;
+            int newLines = changed.split("\\n", -1).length;
+            new AlertDialog.Builder(this)
+                    .setTitle("Подтвердить изменение")
+                    .setMessage(file.path + "\nСтрок было: " + oldLines + "\nСтрок станет: " + newLines
+                            + "\n\nФайл будет перезаписан. Перед сохранением проверьте содержимое.")
+                    .setNegativeButton("Вернуться", null)
+                    .setPositiveButton("Сохранить файл", (d, which) -> {
+                        try {
+                            ProjectWorkspace.writeTextFile(this, AppConfig.projectFolder(this), file.path, changed);
+                            dialog.dismiss();
+                            toast("Файл сохранён: " + file.path);
+                        } catch (Exception e) {
+                            toast("Не удалось сохранить: " + e.getMessage());
+                        }
+                    })
+                    .show();
+        }));
+        dialog.show();
     }
 
     private void showMemory() {

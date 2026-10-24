@@ -7,6 +7,8 @@ import androidx.documentfile.provider.DocumentFile;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,7 +34,10 @@ public final class ProjectWorkspace {
     public static final class ProjectFile {
         public final String path;
         public final String content;
-        ProjectFile(String path, String content) { this.path = path; this.content = content; }
+        public final boolean editable;
+        ProjectFile(String path, String content, boolean editable) {
+            this.path = path; this.content = content; this.editable = editable;
+        }
     }
 
     public static List<ProjectFile> listProjectFiles(Context context, String uriText) {
@@ -46,7 +51,11 @@ public final class ProjectWorkspace {
         collect(root, "", 0, entries);
         for (Entry entry : entries) {
             String content = readText(context, entry.file);
-            if (!content.isEmpty()) result.add(new ProjectFile(entry.path, content));
+            if (!content.isEmpty()) {
+                boolean editable = !content.endsWith("\n[truncated]")
+                        && (entry.file.length() <= 0 || entry.file.length() <= MAX_BYTES_PER_FILE);
+                result.add(new ProjectFile(entry.path, content, editable));
+            }
         }
         return result;
     }
@@ -114,6 +123,44 @@ public final class ProjectWorkspace {
             } else if (isTextFile(name) && (file.length() <= 0 || file.length() <= 256 * 1024L)) {
                 output.add(new Entry(path, file));
             }
+        }
+    }
+
+    /** Writes only an existing, previously enumerated text file after explicit user confirmation. */
+    public static void writeTextFile(Context context, String uriText, String relativePath, String content)
+            throws IOException {
+        if (content == null || content.length() > 256 * 1024) {
+            throw new IOException("Файл пуст или слишком большой для безопасного сохранения.");
+        }
+        if (uriText == null || uriText.trim().isEmpty() || relativePath == null || relativePath.trim().isEmpty()) {
+            throw new IOException("Не указан путь к проекту или файлу.");
+        }
+        DocumentFile current;
+        try { current = DocumentFile.fromTreeUri(context, Uri.parse(uriText)); }
+        catch (Exception e) { throw new IOException("Не удалось открыть папку проекта.", e); }
+        if (current == null || !current.isDirectory()) throw new IOException("Папка проекта недоступна.");
+        String[] parts = relativePath.split("/");
+        for (int i = 0; i < parts.length; i++) {
+            String part = parts[i];
+            if (part.isEmpty() || part.equals(".") || part.equals("..")) {
+                throw new IOException("Недопустимый путь к файлу.");
+            }
+            DocumentFile next = current.findFile(part);
+            if (next == null) throw new IOException("Файл не найден: " + relativePath);
+            if (i < parts.length - 1 && !next.isDirectory()) throw new IOException("Путь содержит не папку.");
+            current = next;
+        }
+        if (!current.isFile() || !current.canWrite() || !isTextFile(current.getName() == null ? "" : current.getName())) {
+            throw new IOException("Нет права на запись или тип файла не поддерживается.");
+        }
+        try (OutputStream out = context.getContentResolver().openOutputStream(current.getUri(), "wt")) {
+            if (out == null) throw new IOException("Провайдер файлов не разрешил запись.");
+            out.write(content.getBytes(StandardCharsets.UTF_8));
+            out.flush();
+        } catch (IOException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IOException("Не удалось сохранить файл.", e);
         }
     }
 
