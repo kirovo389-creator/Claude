@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/main_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="58dp"
+        android:gravity="center_vertical"
+        android:paddingStart="14dp"
+        android:paddingEnd="10dp"
+        android:background="@color/bg"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:gravity="center"
+            android:text="w"
+            android:textStyle="bold"
+            android:textSize="19sp"
+            android:textColor="@color/white"
+            android:background="@drawable/bg_primary_button" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:paddingStart="10dp">
+            <TextView
+                android:id="@+id/title_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Workbench"
+                android:textColor="@color/text_primary"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end" />
+            <TextView
+                android:id="@+id/model_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="AI workspace"
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/new_chat_button"
+            android:layout_width="38dp"
+            android:layout_height="40dp"
+            android:gravity="center"
+            android:text="＋"
+            android:textSize="23sp"
+            android:textColor="@color/text_primary"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Новый чат" />
+        <TextView
+            android:id="@+id/history_button"
+            android:layout_width="38dp"
+            android:layout_height="40dp"
+            android:gravity="center"
+            android:text="☷"
+            android:textSize="21sp"
+            android:textColor="@color/text_primary"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="История чатов" />
+        <TextView
+            android:id="@+id/memory_button"
+            android:layout_width="38dp"
+            android:layout_height="40dp"
+            android:gravity="center"
+            android:text="✳"
+            android:textSize="19sp"
+            android:textColor="@color/text_primary"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Память" />
+        <TextView
+            android:id="@+id/settings_button"
+            android:layout_width="38dp"
+            android:layout_height="40dp"
+            android:gravity="center"
+            android:text="⚙"
+            android:textSize="20sp"
+            android:textColor="@color/text_primary"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Настройки" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/line" />
+
+    <ScrollView
+        android:id="@+id/messages_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:clipToPadding="false"
+        android:paddingBottom="12dp"
+        android:scrollbars="vertical">
+
+        <LinearLayout
+            android:id="@+id/messages_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="18dp"
+            android:paddingBottom="18dp" />
+    </ScrollView>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="10dp"
+        android:background="@color/bg">
+
+        <LinearLayout
+            android:id="@+id/composer_card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="9dp"
+            android:background="@drawable/bg_composer">
+
+            <TextView
+                android:id="@+id/attachments_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp"
+                android:paddingStart="6dp"
+                android:paddingBottom="4dp" />
+
+            <EditText
+                android:id="@+id/prompt_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="45dp"
+                android:maxHeight="150dp"
+                android:gravity="top|start"
+                android:padding="7dp"
+                android:background="@android:color/transparent"
+                android:hint="Напишите сообщение…"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_secondary"
+                android:textSize="15sp"
+                android:inputType="textCapSentences|textMultiLine"
+                android:imeOptions="flagNoExtractUi"
+                android:maxLines="6" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="42dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/attach_button"
+                    android:layout_width="42dp"
+                    android:layout_height="38dp"
+                    android:gravity="center"
+                    android:text="＋"
+                    android:textSize="25sp"
+                    android:textColor="@color/text_secondary"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Прикрепить файл" />
+
+                <TextView
+                    android:id="@+id/think_button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:gravity="center"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:text="✳ Think"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    android:background="@drawable/bg_chip" />
+
+                <TextView
+                    android:id="@+id/think_status"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:paddingStart="9dp"
+                    android:text="Готов к работе"
+                    android:textSize="10sp"
+                    android:textColor="@color/text_secondary"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/send_button"
+                    android:layout_width="38dp"
+                    android:layout_height="36dp"
+                    android:gravity="center"
+                    android:text="↑"
+                    android:textSize="23sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/white"
+                    android:background="@drawable/bg_primary_button"
+                    android:contentDescription="Отправить" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:paddingTop="7dp"
+            android:text="Ответы могут ошибаться. Запросы оплачиваются вашим API-провайдером."
+            android:textColor="@color/text_secondary"
+            android:textSize="10sp" />
+    </LinearLayout>
+</LinearLayout>
