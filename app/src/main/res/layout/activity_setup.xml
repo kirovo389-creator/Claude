@@ -12,8 +12,8 @@
         android:orientation="vertical"
         android:paddingStart="24dp"
         android:paddingEnd="24dp"
-        android:paddingTop="38dp"
-        android:paddingBottom="30dp">
+        android:paddingTop="34dp"
+        android:paddingBottom="28dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -43,18 +43,17 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="27dp"
-            android:text="Подключите модель"
-            android:textSize="29sp"
+            android:text="Подключение Reformboss"
+            android:textSize="28sp"
             android:textStyle="bold"
-            android:letterSpacing="-0.02"
             android:textColor="@color/text_primary" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:layout_marginBottom="21dp"
-            android:text="Введите Base URL, API Key и Model ID. Учётная запись приложения не требуется."
+            android:layout_marginBottom="20dp"
+            android:text="Введите API Key и Model ID. Запросы выполняются через указанный API-провайдер."
             android:textSize="14sp"
             android:lineSpacingExtra="3dp"
             android:textColor="@color/text_secondary" />
@@ -70,13 +69,13 @@
             android:paddingEnd="12dp"
             android:singleLine="true"
             android:inputType="textUri"
-            android:autofillHints="url"
-            android:hint="https://api.example.com/v1"
+            android:text="https://api.reformboss.com/v1"
+            android:hint="https://api.reformboss.com/v1"
             android:textColor="@color/text_primary"
             android:textColorHint="@color/text_secondary"
             android:background="@drawable/bg_composer" />
 
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="API Key" android:textStyle="bold" android:textSize="12sp" android:textColor="@color/text_primary" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="API Key Reformboss" android:textStyle="bold" android:textSize="12sp" android:textColor="@color/text_primary" />
         <EditText
             android:id="@+id/api_key_input"
             android:layout_width="match_parent"
@@ -88,7 +87,7 @@
             android:singleLine="true"
             android:inputType="textPassword"
             android:autofillHints="password"
-            android:hint="Ключ API"
+            android:hint="API Key"
             android:textColor="@color/text_primary"
             android:textColorHint="@color/text_secondary"
             android:background="@drawable/bg_composer" />
@@ -99,11 +98,11 @@
             android:layout_width="match_parent"
             android:layout_height="48dp"
             android:layout_marginTop="6dp"
-            android:layout_marginBottom="14dp"
+            android:layout_marginBottom="8dp"
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
             android:singleLine="true"
-            android:hint="ID модели у провайдера"
+            android:hint="ID модели из каталога Reformboss"
             android:textColor="@color/text_primary"
             android:textColorHint="@color/text_secondary"
             android:background="@drawable/bg_composer" />
@@ -111,26 +110,14 @@
         <Button
             android:id="@+id/load_models_button"
             android:layout_width="match_parent"
-            android:layout_height="44dp"
-            android:layout_marginBottom="12dp"
+            android:layout_height="45dp"
+            android:layout_marginBottom="7dp"
             android:background="@drawable/bg_chip"
             android:backgroundTint="@null"
             android:text="Загрузить список моделей"
             android:textAllCaps="false"
             android:textColor="@color/text_primary"
             android:textSize="13sp" />
-
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Формат API" android:textStyle="bold" android:textSize="12sp" android:textColor="@color/text_primary" />
-        <Spinner
-            android:id="@+id/protocol_spinner"
-            android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:layout_marginTop="6dp"
-            android:layout_marginBottom="8dp"
-            android:background="@drawable/bg_composer"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:entries="@array/api_protocols" />
 
         <CheckBox
             android:id="@+id/remember_key_checkbox"
@@ -145,7 +132,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="15dp"
+            android:layout_marginTop="12dp"
             android:padding="13dp"
             android:orientation="vertical"
             android:background="@drawable/bg_chip">
@@ -160,7 +147,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="Ключ хранится локально в настройках приложения и отправляется только указанному endpoint. Не вставляйте ключ в исходный код или GitHub. Используйте лимиты расходов у провайдера."
+                android:text="Ключ хранится локально в настройках приложения и отправляется на api.reformboss.com. Не добавляйте ключ в исходный код или GitHub."
                 android:textColor="@color/text_secondary"
                 android:textSize="12sp"
                 android:lineSpacingExtra="3dp" />
@@ -191,7 +178,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:gravity="center"
-            android:text="Нативное приложение · Java + XML · Без WebView"
+            android:text="Java + XML · Без HTML и WebView"
             android:textColor="@color/text_secondary"
             android:textSize="11sp" />
     </LinearLayout>
