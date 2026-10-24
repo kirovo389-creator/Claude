@@ -4,6 +4,8 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 public final class AppConfig {
+    public static final String DEFAULT_BASE_URL = "https://api.reformboss.com/v1";
+    public static final String PROVIDER_ID = "reformboss";
     private static final String PREFS = "workbench_settings";
     private static String sessionKey = "";
 
@@ -13,9 +15,13 @@ public final class AppConfig {
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
-    public static String baseUrl(Context c) { return prefs(c).getString("base_url", "https://api.reformboss.com/v1"); }
+    public static String baseUrl(Context c) {
+        return prefs(c).getString("base_url", DEFAULT_BASE_URL);
+    }
     public static String model(Context c) { return prefs(c).getString("model_id", ""); }
-    public static String protocol(Context c) { return prefs(c).getString("protocol", "openai"); }
+    // Reformboss exposes an OpenAI Chat Completions-compatible HTTP schema.
+    // All network calls still go to the configured Reformboss endpoint only.
+    public static String protocol(Context c) { return PROVIDER_ID; }
     public static boolean rememberKey(Context c) { return prefs(c).getBoolean("remember_key", true); }
     public static boolean thinkMode(Context c) { return prefs(c).getBoolean("think_mode", false); }
     public static String systemPrompt(Context c) {
@@ -28,11 +34,13 @@ public final class AppConfig {
         return saved.isEmpty() ? sessionKey : saved;
     }
 
-    public static void save(Context context, String url, String key, String model, String protocol, boolean remember) {
+    public static void save(Context context, String url, String key, String model, String ignoredProtocol, boolean remember) {
+        String normalizedUrl = (url == null || url.trim().isEmpty())
+                ? DEFAULT_BASE_URL : url.trim().replaceAll("/+$", "");
         SharedPreferences.Editor e = prefs(context).edit()
-            .putString("base_url", url == null ? "" : url.trim())
+            .putString("base_url", normalizedUrl)
             .putString("model_id", model == null ? "" : model.trim())
-            .putString("protocol", "anthropic".equals(protocol) ? "anthropic" : "openai")
+            .putString("protocol", PROVIDER_ID)
             .putBoolean("remember_key", remember);
         if (remember) {
             e.putString("api_key", key == null ? "" : key.trim());
