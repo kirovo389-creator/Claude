@@ -1,56 +1,55 @@
-# Workbench — local AI chat workspace
+# Workbench — Android AI chat workspace
 
-A static, browser-based coding assistant workspace with a configurable model endpoint. It is a clean-room implementation inspired by modern AI chat tools; it is **not an official Anthropic product and is not Claude Code**.
+Нативное Android-приложение на **Java + XML**, без HTML и WebView. Это независимый AI-клиент, вдохновлённый современными чат-интерфейсами; он не является официальным приложением Anthropic и не воспроизводит все закрытые инструменты Claude Code.
 
-## Features
+## Возможности
 
-- First-run connection form for **Base URL**, **API Key**, **Model ID**, and API protocol.
-- OpenAI-compatible Chat Completions and Anthropic Messages API modes.
-- Streaming assistant responses, stop generation, retry response, copy response, rename/delete chats.
-- Normal and extended-reasoning request modes. Actual reasoning support depends on the selected provider and model.
-- Local chat history, searchable conversations, local projects, and explicit saved memory injected into future prompts.
-- Real browser file selection, drag/drop, and pasted images; attachments are stored in IndexedDB on the current device.
-- Image attachments are sent as image content. Text/code files are read and included in the prompt. Video files are sampled into a few frames and those frames are sent as images; the original video is kept locally, not uploaded as a video stream. PDF is sent as a document only in Anthropic Messages mode.
-- Light/dark themes, responsive layout, keyboard shortcuts, animated streaming/think state.
+- Первоначальная настройка: **Base URL**, **API Key**, **Model ID** и протокол.
+- OpenAI-compatible Chat Completions и Anthropic Messages API.
+- Потоковая генерация ответов, остановка запроса, история чатов, названия чатов и локальное сохранение.
+- Переключатель Think mode: посылает `reasoning_effort=high` для совместимых OpenAI-style endpoint или параметр `thinking` для Anthropic Messages. Реальная поддержка зависит от модели и провайдера.
+- Локальная память: добавленные вручную заметки включаются в системный контекст будущих запросов.
+- Настоящий Android file picker для изображений, видео, PDF, документов и исходного кода.
+- Изображения передаются как image content; текстовые файлы включаются в текст запроса; PDF передаётся как document в режиме Anthropic Messages. Видео не отправляется как полноценный видеопоток — приложение извлекает несколько кадров и передаёт их как изображения.
+- Сохранение чатов и памяти в локальных настройках приложения.
 
-## Run
+## Сборка APK через GitHub
 
-Open `index.html` in a modern browser. No local server, Node install, runtime libraries, or build step is required for local use.
+Файл `.github/workflows/android.yml` собирает debug APK при изменении `main` и прикладывает его к запуску GitHub Actions в виде артефакта.
 
-## Configure the API
+1. Открой вкладку [Actions](https://github.com/kirovo389-creator/Claude/actions).
+2. Выбери последний запуск **Android APK** с зелёной галочкой.
+3. Внизу страницы запуска скачай артефакт `Workbench-debug-apk`.
+4. Извлеки ZIP и установи `app-debug.apk` на Android.
 
-1. Open the app and enter your Base URL, API Key, and Model ID.
-2. Choose the API protocol your provider supports.
-3. Save, then use **Settings → Check connection** to test the endpoint.
-4. If requests fail with a network/CORS error, the provider may not allow browser-origin requests. The app cannot bypass the provider's CORS rules.
+Можно собрать локально через Gradle 8.9 и JDK 17 командой:
 
-For OpenAI-compatible APIs, the app appends `/chat/completions` if the provided base ends in `/v1`, or `/v1/chat/completions` if no versioned path is present. For Anthropic Messages, it appends `/messages` to a `/v1` base, or `/v1/messages` otherwise.
+```sh
+gradle --no-daemon assembleDebug
+```
 
-## Data and security
+## Настройка API
 
-- Chats, projects, and memory stay in this browser's local storage.
-- Attachment blobs stay in this browser's IndexedDB.
-- If “remember API key” is selected, the key is stored locally on the device. Otherwise it is only kept in page memory until reload.
-- The API key is never embedded in this repository or deployed site by the app. The browser sends it to the configured API endpoint; use only a trusted endpoint and a scoped key with spending limits.
-- Clearing browser site data removes locally stored chats and attachments. Use Settings → Delete local chats and settings to clear the app's stored data.
+Введи Base URL, API Key, Model ID и выбери соответствующий протокол. Приложение обращается к endpoint напрямую с устройства. Провайдер должен поддерживать выбранный протокол, потоковые ответы и соответствующий формат вложений.
 
-## Current limitations
+Для OpenAI-compatible API приложение добавляет `/chat/completions` к URL с версией вроде `/v1`, иначе добавляет `/v1/chat/completions`. Для Anthropic Messages добавляется `/messages` к URL версии `/v1`, иначе используется `/v1/messages`.
 
-This is a browser-based chat workspace, not an agent with shell access. It cannot autonomously inspect or change your computer's filesystem, run terminal commands, edit project files outside files you upload, or run Claude Code's internal tools. It does not implement every proprietary Claude Code feature.
+## Безопасность и хранение
 
-The OpenAI-compatible Chat Completions format has no universal PDF/video input schema. In that mode, PDFs are not transferred as raw PDF files; videos are sampled into a few frames and sent as images, if the selected model supports vision. Model/provider-specific capabilities vary.
+- API-ключ не хранится в исходном коде или GitHub. При включённом флажке запоминания ключ сохраняется в приватных настройках приложения; при отключённом — хранится только до завершения процесса приложения.
+- Чаты и память хранятся локально на устройстве.
+- Файлы выбираются пользователем через системный Android picker и передаются выбранному endpoint только во время запроса.
+- Используй доверенный endpoint и ключ с минимально необходимыми разрешениями и ограничениями расходов. Запросы могут тарифицироваться провайдером.
 
-## Deploy on GitHub Pages
+## Ограничения текущей версии
 
-The repository includes `.github/workflows/deploy.yml`, which validates the inline JavaScript and deploys the static site when `main` changes.
+Это клиент с чатами и передачей выбранных файлов, а не полный агент с доступом к shell. Он не может сам запускать команды терминала, изменять файлы вне выбранных вложений или автоматически обходить весь проект на устройстве. Не реализованы все проприетарные функции Claude Code. Вложения и режим Think зависят от API провайдера; совместимость разных OpenAI-compatible сервисов может отличаться.
 
-One-time setup:
-1. Open repository **Settings → Pages**.
-2. Under **Build and deployment → Source**, choose **GitHub Actions**.
-3. Open the **Actions** tab and check the “Validate and deploy Workbench” workflow.
+## Стек
 
-The public site will be available at `https://kirovo389-creator.github.io/Claude/` after Pages is enabled and the deployment workflow succeeds.
-
-## License
-
-No third-party UI assets or runtime libraries are bundled. Add a license before redistributing this project if you intend to make it public as a reusable package.
+- Java 17
+- Android Gradle Plugin 8.7.3
+- Gradle 8.9
+- AndroidX AppCompat
+- XML layouts and drawables
+- Android `HttpURLConnection`, Server-Sent Events streaming, `SharedPreferences`
