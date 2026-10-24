@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: android-apk-${{ github.ref }}
@@ -35,10 +35,44 @@ jobs:
       - name: Build debug APK
         run: gradle --no-daemon clean assembleDebug
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: Workbench-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+  release:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Download built APK
+        uses: actions/download-artifact@v4
+        with:
+          name: Workbench-debug-apk
+          path: dist
+
+      - name: Name release APK
+        run: cp dist/app-debug.apk Workbench-v1.0.0.apk
+
+      - name: Publish or update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          target_commitish: main
+          name: Workbench Android v1.0.0
+          body: |
+            Native Android app written in Java and XML, without HTML/WebView.
+
+            Includes Reformboss API setup, streaming chat, local chat history and memory, Think-mode hint, and native file picker support.
+
+            This is a debug APK. Install only if you trust this build; API requests are sent to the Reformboss endpoint configured in the app. Model features depend on the selected model.
+          files: Workbench-v1.0.0.apk
+          overwrite_files: true
+          prerelease: true
+          fail_on_unmatched_files: true
