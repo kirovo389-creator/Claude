@@ -78,8 +78,13 @@ public class MainActivity extends AppCompatActivity {
             registerForActivityResult(new ActivityResultContracts.OpenDocumentTree(), uri -> {
                 if (uri == null) return;
                 try {
-                    getContentResolver().takePersistableUriPermission(
-                            uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    try {
+                        getContentResolver().takePersistableUriPermission(uri,
+                                Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                    } catch (SecurityException writeNotGranted) {
+                        getContentResolver().takePersistableUriPermission(uri,
+                                Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    }
                     AppConfig.setProjectFolder(this, uri.toString());
                     updateChrome();
                     toast("Папка проекта подключена: " + ProjectWorkspace.getRootName(this, uri.toString()));
@@ -355,7 +360,8 @@ public class MainActivity extends AppCompatActivity {
                         if (!oldUri.isEmpty()) {
                             try {
                                 getContentResolver().releasePersistableUriPermission(
-                                        Uri.parse(oldUri), Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                                        Uri.parse(oldUri), Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                                | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
                             } catch (Exception ignored) {}
                             AppConfig.setProjectFolder(this, "");
                             updateChrome();
@@ -400,9 +406,7 @@ public class MainActivity extends AppCompatActivity {
         source.setTextIsSelectable(true);
         source.setPadding(dp(14), dp(12), dp(14), dp(12));
         scroll.addView(source);
-        AlertDialog.Builder builder = new AlertDialog.Builder(this)
-                .setTitle(file.path)
-                .setView(scroll)
+        AlertDialog.Builder builder = new AlertDialog.Builder(this).setTitle(file.path).setView(scroll)
                 .setNeutralButton("Спросить об этом файле", (dialog, which) -> {
                     String prompt = "Проанализируй файл " + file.path + " и ответь по существу.\n\n"
                             + "Содержимое файла:\n" + file.content;
@@ -411,20 +415,10 @@ public class MainActivity extends AppCompatActivity {
                     promptInput.requestFocus();
                 })
                 .setPositiveButton("Готово", null);
-        if (file.editable) builder.setNegativeButton("Редактировать", (dialog, which) -> editProjectFile(file));
-        new AlertDialog.Builder(this).setTitle(file.path).setView(scroll)
-                .setNeutralButton("Спросить об этом файле", (dialog, which) -> {
-                    String prompt = "Проанализируй файл " + file.path + " и ответь по существу.\n\n"
-                            + "Содержимое файла:\n" + file.content;
-                    promptInput.setText(prompt);
-                    promptInput.setSelection(promptInput.getText().length());
-                    promptInput.requestFocus();
-                })
-                .setPositiveButton("Готово", null)
-                .setNegativeButton(file.editable ? "Редактировать" : "Файл обрезан", (dialog, which) -> {
-                    if (file.editable) editProjectFile(file);
-                })
-                .show();
+        if (file.editable) {
+            builder.setNegativeButton("Редактировать", (dialog, which) -> editProjectFile(file));
+        }
+        builder.show();
     }
 
     private void editProjectFile(ProjectWorkspace.ProjectFile file) {
