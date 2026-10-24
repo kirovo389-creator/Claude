@@ -132,6 +132,122 @@ public final class ApiClient {
         }
     }
 
+    /**
+     * Extracts durable, non-sensitive memories with a separate small API request.
+     * File attachment contents are intentionally excluded from this extraction.
+     */
+    public java.util.List<String> extractMemories(ChatStore.Chat chat, java.util.List<String> existing)
+            throws Exception {
+        if (chat == null) return java.util.Collections.emptyList();
+        StringBuilder transcript = new StringBuilder();
+        int start = Math.max(0, chat.messages.size() - 12);
+        for (int i = start; i < chat.messages.size(); i++) {
+            ChatStore.Message m = chat.messages.get(i);
+            if (m == null) continue;
+            String text = m.text == null ? "" : m.text.trim();
+            if (text.isEmpty() && m.attachments.isEmpty()) continue;
+            transcript.append("assistant".equals(m.role) ? "ASSISTANT: " : "USER: ");
+            if (text.length() > 1800) text = text.substring(0, 1800);
+            transcript.append(text);
+            if (!m.attachments.isEmpty()) {
+                transcript.append(" [attachments: ");
+                for (int j = 0; j < Math.min(4, m.attachments.size()); j++) {
+                    if (j > 0) transcript.append(", ");
+                    transcript.append(m.attachments.get(j).name);
+                }
+                transcript.append("]");
+            }
+            transcript.append("\n");
+        }
+        if (transcript.length() == 0) return java.util.Collections.emptyList();
+
+        StringBuilder known = new StringBuilder();
+        if (existing != null) for (String item : existing) {
+            if (item != null && !item.trim().isEmpty()) known.append("- ").append(item.trim()).append("\n");
+        }
+        JSONArray messages = new JSONArray();
+        messages.put(new JSONObject().put("role", "system").put("content",
+                "You are a conservative private-memory extractor for an AI coding assistant. " +
+                "Use only facts explicitly stated or clearly confirmed by the USER; do not treat assistant guesses as facts. " +
+                "Keep durable response preferences, ongoing project details, and recurring workflow choices only. " +
+                "Never save passwords, API keys, tokens, secrets, precise addresses, sensitive personal information, or one-off questions. " +
+                "Never infer a personal trait. Keep each memory short and in the user's language. " +
+                "Avoid duplicates. Return ONLY valid JSON exactly like {\"memories\":[\"fact\"]}. " +
+                "Return an empty array if there is nothing new. Maximum four facts."));
+        messages.put(new JSONObject().put("role", "user").put("content",
+                "Existing memories:\n" + (known.length() == 0 ? "(none)\n" : known.toString()) +
+                "\nRecent conversation:\n" + transcript.toString() +
+                "\nReturn only newly useful facts in JSON; do not quote the conversation."));
+        JSONObject body = new JSONObject();
+        body.put("model", AppConfig.model(context));
+        body.put("messages", messages);
+        body.put("stream", false);
+        body.put("max_tokens", 450);
+
+        HttpURLConnection c = (HttpURLConnection) new URL(endpoint(AppConfig.baseUrl(context), AppConfig.protocol(context))).openConnection();
+        try {
+            c.setRequestMethod("POST");
+            c.setConnectTimeout(12000);
+            c.setReadTimeout(35000);
+            c.setDoOutput(true);
+            c.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+            c.setRequestProperty("Accept", "application/json");
+            c.setRequestProperty("Authorization", "Bearer " + AppConfig.apiKey(context));
+            byte[] request = body.toString().getBytes(StandardCharsets.UTF_8);
+            c.setFixedLengthStreamingMode(request.length);
+            try (OutputStream out = c.getOutputStream()) { out.write(request); out.flush(); }
+
+            int code = c.getResponseCode();
+            String payload = readAll(code >= 200 && code < 300 ? c.getInputStream() : c.getErrorStream(), 96 * 1024);
+            if (code < 200 || code >= 300) throw new IOException("Memory HTTP " + code + ": " + shorten(extractError(payload), 300));
+            JSONObject response = new JSONObject(payload);
+            JSONArray choices = response.optJSONArray("choices");
+            if (choices == null || choices.length() == 0) return java.util.Collections.emptyList();
+            JSONObject choice = choices.optJSONObject(0);
+            JSONObject message = choice == null ? null : choice.optJSONObject("message");
+            if (message == null) return java.util.Collections.emptyList();
+            Object value = message.opt("content");
+            String content = "";
+            if (value instanceof String) content = (String) value;
+            else if (value instanceof JSONArray) {
+                JSONArray parts = (JSONArray) value;
+                StringBuilder joined = new StringBuilder();
+                for (int i = 0; i < parts.length(); i++) {
+                    JSONObject part = parts.optJSONObject(i);
+                    if (part != null) joined.append(part.optString("text", ""));
+                }
+                content = joined.toString();
+            }
+            content = content.trim();
+            String fence = String.valueOf((char) 96).repeat(3);
+            if (content.startsWith(fence)) {
+                int newline = content.indexOf('\n');
+                content = newline >= 0 ? content.substring(newline + 1) : content;
+                int closing = content.lastIndexOf(fence);
+                if (closing >= 0) content = content.substring(0, closing);
+                content = content.trim();
+            }
+            JSONArray facts;
+            try {
+                facts = new JSONObject(content).optJSONArray("memories");
+            } catch (JSONException notObject) {
+                try { facts = new JSONArray(content); }
+                catch (JSONException invalid) { return java.util.Collections.emptyList(); }
+            }
+            if (facts == null) return java.util.Collections.emptyList();
+            java.util.List<String> result = new java.util.ArrayList<>();
+            for (int i = 0; i < facts.length() && result.size() < 4; i++) {
+                String fact = facts.optString(i, "").trim();
+                if (fact.length() < 4 || fact.length() > 220) continue;
+                if (fact.matches("(?is).*(api[_ -]?key|password|парол[ья]|access token|bearer\\s+[a-z0-9._-]+|sk-[a-z0-9_-]{8,}|secret key).*")) continue;
+                result.add(fact);
+            }
+            return result;
+        } finally {
+            c.disconnect();
+        }
+    }
+
     private JSONObject buildOpenAiPayload(ChatStore.Chat chat, List<String> memories)
             throws JSONException, IOException {
         JSONArray messages = new JSONArray();
